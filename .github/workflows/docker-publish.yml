@@ -54,7 +54,10 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.tagger.outputs.tags }}, latest
+          tags: |
+            ghcr.io/gnur/tsprox:${{ steps.tagger.outputs.tags }}
+            ghcr.io/gnur/tsprox:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
