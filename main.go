@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"time"
 
 	"github.com/sethvargo/go-envconfig"
 	"tailscale.com/client/tailscale"
@@ -19,6 +23,7 @@ type config struct {
 	ClientSecret         string `env:"OAUTH_CLIENT_SECRET"`
 	TailnetName          string `env:"TAILNET_NAME"`
 	HostName             string `env:"HOSTNAME"`
+	ProxyHost            string `env:"PROXY_HOST"`
 	Verbose              bool   `env:"VERBOSE"`
 }
 
@@ -47,7 +52,33 @@ func main() {
 		srv.Logf = log.Printf
 	}
 
-	http.HandleFunc("/", serveGo)
+	url, err := url.Parse(cfg.ProxyHost)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	proxy := &httputil.ReverseProxy{
+		Director: func(r *http.Request) {
+			u, _ := currentUser(r)
+			r.Header.Add("X-Forwarded-Host", url.Hostname())
+			r.Header.Add("X-Origin-Host", cfg.HostName)
+			r.Header.Add("X-Origin-User", u)
+			r.Host = url.Host
+			r.URL.Host = url.Host
+			r.URL.Scheme = url.Scheme
+
+		}, Transport: &http.Transport{
+			TLSHandshakeTimeout: 10 * time.Second,
+			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns:        100,
+			Dial: (&net.Dialer{
+				Timeout:   6 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+		}}
+
+	http.HandleFunc("/", proxy.ServeHTTP)
+
 	if cfg.TailscaleControlHost == "" {
 		cfg.TailscaleControlHost = ipn.DefaultControlURL
 	}
@@ -75,14 +106,4 @@ func currentUser(r *http.Request) (string, error) {
 	login = res.UserProfile.LoginName
 
 	return login, nil
-}
-
-func serveGo(w http.ResponseWriter, r *http.Request) {
-
-	user, err := currentUser(r)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Fprintf(w, "Hello, %s!", user)
-
 }
