@@ -9,5 +9,6 @@ export VERBOSE="true"
 export PROXY_HOST="http://localhost:8008"
 export ENABLE_CAPTURE=false
 export MAX_CAPTURES=10
+export TAILSCALE_TAGS="tag:service"
 
 go run .

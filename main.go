@@ -19,14 +19,15 @@ import (
 )
 
 type config struct {
-	TailscaleControlHost string `env:"TS_HOST"`
-	ClientID             string `env:"OAUTH_CLIENT_ID"`
-	ClientSecret         string `env:"OAUTH_CLIENT_SECRET"`
-	TailscaleToken       string `env:"TAILSCALE_TOKEN"`
-	TailnetName          string `env:"TAILNET_NAME"`
-	HostName             string `env:"HOSTNAME"`
-	ProxyHost            string `env:"PROXY_HOST"`
-	Verbose              bool   `env:"VERBOSE"`
+	TailscaleControlHost string   `env:"TS_HOST"`
+	ClientID             string   `env:"OAUTH_CLIENT_ID"`
+	ClientSecret         string   `env:"OAUTH_CLIENT_SECRET"`
+	TailscaleToken       string   `env:"TAILSCALE_TOKEN"`
+	TailnetName          string   `env:"TAILNET_NAME"`
+	TailscaleTags        []string `env:"TAILSCALE_TAGS"`
+	HostName             string   `env:"HOSTNAME"`
+	ProxyHost            string   `env:"PROXY_HOST"`
+	Verbose              bool     `env:"VERBOSE"`
 
 	EnableCapture bool `env:"ENABLE_CAPTURE"`
 	MaxCaptures   int  `env:"MAX_CAPTURES"`
@@ -45,7 +46,7 @@ func main() {
 
 	tsToken := cfg.TailscaleToken
 	if tsToken == "" {
-		tsToken, err = getAuthToken(cfg.ClientID, cfg.ClientSecret, cfg.TailnetName)
+		tsToken, err = getAuthToken(cfg.ClientID, cfg.ClientSecret, cfg.TailnetName, cfg.TailscaleTags)
 		if err != nil {
 			log.Fatal(err)
 		}

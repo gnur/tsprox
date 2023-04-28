@@ -1,4 +1,0 @@
-# todo
-
-- example config
-- readme

@@ -42,7 +42,7 @@ type createTokenResponse struct {
 	} `json:"capabilities"`
 }
 
-func getAuthToken(clientid, clientsecret, tailnet string) (string, error) {
+func getAuthToken(clientid, clientsecret, tailnet string, tags []string) (string, error) {
 	var oauthConfig = &clientcredentials.Config{
 		ClientID:     clientid,
 		ClientSecret: clientsecret,
@@ -58,7 +58,7 @@ func getAuthToken(clientid, clientsecret, tailnet string) (string, error) {
 	req.Capabilities.Devices.Create.Reusable = true
 	req.Capabilities.Devices.Create.Ephemeral = true
 	req.Capabilities.Devices.Create.Preauthorized = true
-	req.Capabilities.Devices.Create.Tags = []string{"tag:service"}
+	req.Capabilities.Devices.Create.Tags = tags
 	req.ExpirySeconds = 30
 
 	body, err := json.Marshal(req)
