@@ -3,6 +3,7 @@ WORKDIR /workdir
 COPY go.* /workdir/
 RUN go mod download
 COPY *.go /workdir/
+COPY *.html /workdir/
 
 RUN CGO_ENABLED=0 go build -a -installsuffix cgo -o tsprox .
 
