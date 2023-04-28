@@ -54,11 +54,12 @@ func getAuthToken(clientid, clientsecret, tailnet string) (string, error) {
 	endpoint := fmt.Sprintf("https://api.tailscale.com/api/v2/tailnet/%s/keys", tailnet)
 
 	req := createTokenBody{}
-	req.Capabilities.Devices.Create.Reusable = false
+	//sometimes the token gets revoked prematurely somehow so allow reuse
+	req.Capabilities.Devices.Create.Reusable = true
 	req.Capabilities.Devices.Create.Ephemeral = true
 	req.Capabilities.Devices.Create.Preauthorized = true
 	req.Capabilities.Devices.Create.Tags = []string{"tag:service"}
-	req.ExpirySeconds = 60
+	req.ExpirySeconds = 30
 
 	body, err := json.Marshal(req)
 	if err != nil {

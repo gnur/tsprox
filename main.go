@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/sethvargo/go-envconfig"
@@ -21,10 +22,14 @@ type config struct {
 	TailscaleControlHost string `env:"TS_HOST"`
 	ClientID             string `env:"OAUTH_CLIENT_ID"`
 	ClientSecret         string `env:"OAUTH_CLIENT_SECRET"`
+	TailscaleToken       string `env:"TAILSCALE_TOKEN"`
 	TailnetName          string `env:"TAILNET_NAME"`
 	HostName             string `env:"HOSTNAME"`
 	ProxyHost            string `env:"PROXY_HOST"`
 	Verbose              bool   `env:"VERBOSE"`
+
+	EnableCapture bool `env:"ENABLE_CAPTURE"`
+	MaxCaptures   int  `env:"MAX_CAPTURES"`
 }
 
 var tsClient *tailscale.LocalClient
@@ -33,19 +38,28 @@ func main() {
 
 	ctx := context.Background()
 	var cfg config
-	if err := envconfig.Process(ctx, &cfg); err != nil {
+	err := envconfig.Process(ctx, &cfg)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	tsToken, err := getAuthToken(cfg.ClientID, cfg.ClientSecret, cfg.TailnetName)
-	if err != nil {
-		log.Fatal(err)
+	tsToken := cfg.TailscaleToken
+	if tsToken == "" {
+		tsToken, err = getAuthToken(cfg.ClientID, cfg.ClientSecret, cfg.TailnetName)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if cfg.TailscaleControlHost == "" {
+		cfg.TailscaleControlHost = ipn.DefaultControlURL
 	}
 
 	srv := &tsnet.Server{
 		ControlURL: cfg.TailscaleControlHost,
 		Hostname:   cfg.HostName,
 		AuthKey:    tsToken,
+		Ephemeral:  true,
 		Logf:       func(format string, args ...any) {},
 	}
 	if cfg.Verbose {
@@ -77,11 +91,8 @@ func main() {
 			}).Dial,
 		}}
 
-	http.HandleFunc("/", proxy.ServeHTTP)
-
-	if cfg.TailscaleControlHost == "" {
-		cfg.TailscaleControlHost = ipn.DefaultControlURL
-	}
+	capSrv := NewCaptureService(cfg.MaxCaptures)
+	hdr := NewRecorderHandler(capSrv, proxy.ServeHTTP)
 
 	tsClient, _ = srv.LocalClient()
 	l80, err := srv.Listen("tcp", ":80")
@@ -89,9 +100,25 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if cfg.EnableCapture && cfg.MaxCaptures > 0 {
+		go func() {
+			l81, err := srv.Listen("tcp", ":81")
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := http.Serve(l81, NewDashboardHandler(hdr, capSrv, cfg)); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		}()
+	} else {
+		hdr = proxy.ServeHTTP
+	}
+
 	log.Printf("Serving http://%s/ ...", cfg.HostName)
-	if err := http.Serve(l80, nil); err != nil {
+	if err := http.Serve(l80, hdr); err != nil {
 		log.Fatal(err)
+		os.Exit(1)
 	}
 
 	fmt.Println("Hello, World!")
