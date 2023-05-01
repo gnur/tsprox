@@ -1,12 +1,12 @@
-# TSPROX
+# TSPROX (TailScalePROXy)
 
-tsprox is a proxy designed to be running as sidecar container within kubernetes. It will will add itself to your tailscale tailnet to provide a easily reachable address for you and other services living within your tailnet.
+tsprox is a proxy designed to be running as sidecar container within kubernetes. It will will add itself to your [tailscale](https://tailscale.com/) tailnet to provide a easily reachable address for you and other services living within your tailnet.
 
 By design, it becomes a unique host in your tailnet, it will always listen on port 80.
 
 ## motivation
 
-For my side projects I often don't need publicly reachable addresses, but it is really useful to be able to reach services running inside a kubernetes cluster. Or even between clusters. tsprox allows you to instantly have resolvable "magic" dns names for those services.
+For my side projects I often don't need publicly reachable addresses, but it is really useful to be able to reach services running inside a kubernetes cluster. Or even between clusters. tsprox allows you to instantly have resolvable [magic](https://tailscale.com/kb/1081/magicdns/) dns names for those services.
 
 ## authentication
 
@@ -20,7 +20,7 @@ The second approach allows you to use an auth key you provision yourself.
 
 ## identity aware proxy
 
-tsprox resolves all ip addresses to actual "users". The resolved "user" (tailscale machine name or tags) will be available to the proxied service in the `X-Origin-User` header.
+tsprox tries to resolve all requests to actual "users". The resolved "user" (tailscale machine name or tags) will be available to the proxied service in the `X-Origin-User` header.
 
 
 ## captures
@@ -34,7 +34,7 @@ The following env vars configure tsprox:
 ```bash
 HOSTNAME=tsprox-dev #"machine" name that will be the magic dns name within tailscale
 VERBOSE=true
-PROXY_HOST=http://localhost:8008 # address to proxy requests to, needs to be with protocol
+PROXY_HOST=http://localhost:8008 # address to proxy requests to, needs to include protocol (http | https)
 ENABLE_CAPTURE=false # wether to enable the web requests capture funcionality that will be available at http://${HOSTNAME}:81
 MAX_CAPTURES=10 # amount of requests to keep in memory
 
@@ -54,7 +54,7 @@ Just add the following snippet to any deployment:
 
 ```yaml
     containers:
-    - image: ghcr.io/gnur/tsprox:v0.9-1-geb13476
+    - image: ghcr.io/gnur/tsprox:v1.40.0
       imagePullPolicy: IfNotPresent
       name: tsprox
       envFrom:
@@ -65,3 +65,9 @@ Just add the following snippet to any deployment:
 ```
 
 And also create the configmap and secret off course.
+
+## versioning
+
+tsprox follows tailscale versioning, version before the dash is tailscale, rest is number of tsprox releases since.
+
+Image tag latest is also supported, but not advised to use in anything other than testing.
